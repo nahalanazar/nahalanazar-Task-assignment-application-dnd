@@ -89,7 +89,7 @@ const updateTaskStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
 
   const task = await Task.findById(taskId);
-
+ 
   if (task) {
     task.status = status;
     const updatedTask = await task.save();
@@ -99,7 +99,7 @@ const updateTaskStatus = asyncHandler(async (req, res) => {
     throw new Error('Task not found');
   }
 });
-
+ 
 
 export {
     authUser,

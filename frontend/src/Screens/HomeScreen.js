@@ -1,9 +1,11 @@
 import React, {  useState, useEffect } from 'react'
 import axios from 'axios'
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify'
+import io from 'socket.io-client';
+
+const socket = io('http://localhost:5000');
+
 const HomeScreen = () => {
 
   const [showMenu, setShowMenu] = useState(false)
@@ -32,6 +34,10 @@ const HomeScreen = () => {
 
   const addTaskHandler = async (e) => {
     e.preventDefault();
+    if (!task.trim()) {
+      toast.error('Task cannot be empty');
+      return;
+    }
     try {
       const userDataString = localStorage.getItem('userInfo'); 
       const userData = JSON.parse(userDataString);
@@ -44,12 +50,15 @@ const HomeScreen = () => {
       };
       const data = await axios.post('/api/users/createTask', { task, status }, config);
       setTasks(prevTasks => [...prevTasks, data.data]);
+      socket.emit('taskAdded', data.data);
+      setTask('')
+      setStatus('')
       toast.success('Task added successfully');
       toggleModal();
     } catch (error) {
       console.error('Error adding task:', error);
       toast.error('Error adding task');
-    }
+    } 
   };
 
 
@@ -58,7 +67,6 @@ const HomeScreen = () => {
       try {
         const response = await axios.get("/api/users/showTask");
         const { tasks } = response.data;
-        console.log("response", tasks)
         setTasks(tasks);  
       } catch (error) {
         console.error('Error fetching tasks:', error);
@@ -66,6 +74,22 @@ const HomeScreen = () => {
     };
 
     fetchTasks();
+
+    const handleTaskUpdated = (updatedTask) => {
+        setTasks(prevTasks => prevTasks.map(task => task._id === updatedTask._id ? updatedTask : task));
+    };
+
+    const handleTaskAdded = (newTask) => {
+        setTasks(prevTasks => [...prevTasks, newTask]);
+    };
+
+    socket.on('taskUpdated', handleTaskUpdated);
+    socket.on('taskAdded', handleTaskAdded);
+
+    return () => {
+      socket.off('taskUpdated', handleTaskUpdated);
+      socket.off('taskAdded', handleTaskAdded);
+    };
   }, []);
 
   const handleDragStart = (e, taskId) => {
@@ -76,18 +100,19 @@ const HomeScreen = () => {
     e.preventDefault();
   };
 
+
   const handleDrop = async (e, newStatus) => {
     const taskId = e.dataTransfer.getData('taskId');
     try {
       await axios.put(`/api/users/${taskId}`, { status: newStatus });
-      const updatedTasks = tasks.map((task) =>
-        task._id === taskId ? { ...task, status: newStatus } : task
-      );
-      setTasks(updatedTasks);
+      const updatedTask = { ...tasks.find(task => task._id === taskId), status: newStatus };
+      socket.emit('taskUpdated', updatedTask); 
+      setTasks(prevTasks => prevTasks.map(task => task._id === taskId ? updatedTask : task));
     } catch (error) {
       console.error('Error moving task:', error);
     }
   };
+
 
  
  
