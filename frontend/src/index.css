@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body{
+    background-color: black;
+}
+
+.card{
+    @apply bg-gray-900 rounded overflow-hidden relative
+}
+
+.btn{
+    @apply rounded-full py-2 px-3 text-xs cursor-pointer tracking-wider
+}
